@@ -250,7 +250,7 @@
   try { src.value = localStorage.getItem('rc.draft') || ''; } catch (e) { /* ignore */ }
 
   // The box grows with the post, like the WhatsApp bubble does - never an inner scrollbar.
-  function autosize() { src.style.height = 'auto'; src.style.height = Math.max(240, src.scrollHeight + 4) + 'px'; }
+  function autosize() { src.style.height = 'auto'; src.style.height = Math.max(240, src.scrollHeight) + 'px'; }
 
   function updateCount() {
     autosize();

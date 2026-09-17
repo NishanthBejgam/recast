@@ -289,6 +289,13 @@ html[data-theme="dark"] .stale { color: #ffd98a; background: #3a2c0a; border-col
   white-space: pre-wrap; word-break: break-word; border-top: 1px solid rgba(255,255,255,.08); max-height: 320px; overflow: auto;
 }
 
+/* Copy lives in each frame's header row - no scrolling to the bottom to post. */
+.head-copy { margin-left: auto; display: flex; gap: 6px; flex: 0 0 auto; }
+.wa-bar .copy.wa { background: #fff; color: var(--wa-deep); box-shadow: none; }
+.wa-bar .copy.wa:hover { background: #e9fbf1; }
+.wa-bar .copy.is-copied { background: #d9fdd3 !important; color: #075e54 !important; }
+.ig-head, .li-head, .rd-head { align-items: center; }
+
 /* WhatsApp */
 .frame-wa { background: var(--wa-wall); }
 .wa-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--wa-deep); color: #fff; }
@@ -321,7 +328,7 @@ html[data-theme="dark"] .stale { color: #ffd98a; background: #3a2c0a; border-col
 .ig-more { font-weight: 800; letter-spacing: 1px; color: #262626; }
 .ig-media { aspect-ratio: 4 / 3; max-height: 180px; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 13px; letter-spacing: .02em; background: linear-gradient(135deg, #f9ce34, #ee2a7b 55%, #6228d7); }
 .ig-media span { background: rgba(0,0,0,.28); padding: 6px 12px; border-radius: 999px; backdrop-filter: blur(4px); }
-.ig-icons { display: flex; gap: 14px; padding: 10px 12px 6px; color: #262626; }
+.ig-icons { display: flex; gap: 14px; padding: 6px 12px 6px; color: #262626; border-top: 1px solid #efefef; }
 .ig-icons .ig-save { margin-left: auto; }
 .ig-caption { padding: 2px 12px 14px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; color: #262626; }
 .ig-caption strong { font-weight: 600; }
@@ -394,6 +401,5 @@ html[data-theme="dark"] .stale { color: #ffd98a; background: #3a2c0a; border-col
   .tabs { position: sticky; top: 70px; z-index: 20; }
   .tab-name { display: none; }
   .tab { padding: 10px 6px; }
-  .frame-foot { flex-direction: column; align-items: stretch; }
-  .frame-actions { justify-content: flex-end; }
+  .head-copy .btn-sm { padding: 6px 10px; font-size: 12px; }
 }
