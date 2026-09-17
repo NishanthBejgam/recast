@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReCast — write once for X, post everywhere</title>
+  <meta name="description" content="Paste your X post, get WhatsApp, Instagram, LinkedIn and Reddit versions — formatted the way each platform expects. Free, private, runs in your browser." />
+  <link rel="canonical" href="https://recast.yourcardjourney.store/" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#6b38c9" />
+  <meta property="og:title" content="ReCast — one post, every channel" />
+  <meta property="og:description" content="Turn an X post into WhatsApp, Instagram, LinkedIn and Reddit versions in one click." />
+  <meta property="og:url" content="https://recast.yourcardjourney.store/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    // Theme before paint: saved choice, else system.
+    (function(){try{var t=localStorage.getItem('rc.theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){}})();
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./" aria-label="ReCast home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="5" cy="12" r="2.2" fill="#fff" stroke="none"/>
+            <path class="ray r1" d="M7.2 11.2 15.5 5.6"/>
+            <path class="ray r2" d="M7.4 12h8"/>
+            <path class="ray r3" d="M7.2 12.8 15.5 18.4"/>
+            <circle class="dot d1" cx="18" cy="5" r="1.9" fill="#fff" stroke="none"/>
+            <circle class="dot d2" cx="18" cy="12" r="1.9" fill="#fff" stroke="none"/>
+            <circle class="dot d3" cx="18" cy="19" r="1.9" fill="#fff" stroke="none"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-word">Re<em>Cast</em></span>
+          <span class="brand-tag">One post · Every channel</span>
+        </span>
+      </a>
+      <div class="topbar-actions">
+        <span class="progress" id="progress" hidden><span class="progress-dots" id="progressDots"></span><span id="progressText">0 of 4 posted</span></span>
+        <button class="icon-btn" id="settingsBtn" title="Sign-off & hashtag settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+        <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">
+          <svg class="ic-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="ic-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <!-- ============ LEFT: the X composer (source) ============ -->
+    <section class="pane pane-x" id="paneX" aria-label="Source post for X">
+      <div class="x-chrome">
+        <div class="x-head">
+          <span class="x-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </span>
+          <div class="x-title">
+            <strong>Source · X post</strong>
+            <span>Write it once, the way you post it on X</span>
+          </div>
+          <span class="lock-pill" id="lockPill" hidden>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            Locked
+          </span>
+        </div>
+
+        <div class="x-compose">
+          <div class="x-avatar" aria-hidden="true">
+            <img src="yourcardjourney.png" alt="" onerror="this.style.display='none'" />
+          </div>
+          <div class="x-body">
+            <textarea id="src" class="x-text" placeholder="What is happening?!&#10;&#10;Paste or write your X post here — headline first, then details. Lines like  Brand: Myntra  or  Code: SAVE10  get picked up as labels." spellcheck="true" autocomplete="off"></textarea>
+            <div class="x-hints" id="hints"></div>
+          </div>
+        </div>
+
+        <div class="x-foot">
+          <div class="x-meta">
+            <span class="x-ring" id="ring" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="9.5" fill="none" stroke="#2f3336" stroke-width="2"/><circle id="ringArc" cx="12" cy="12" r="9.5" fill="none" stroke="#1d9bf0" stroke-width="2" stroke-linecap="round" stroke-dasharray="59.7" stroke-dashoffset="59.7" transform="rotate(-90 12 12)"/></svg></span>
+            <span class="x-count" id="count">0</span>
+          </div>
+          <div class="x-actions">
+            <button class="x-ghost" id="pasteBtn" type="button">Paste</button>
+            <button class="x-ghost" id="clearBtn" type="button">Clear</button>
+            <button class="convert" id="convertBtn" type="button">
+              <span class="convert-label">Convert</span>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="x-locked-overlay" id="lockedOverlay" hidden>
+        <button class="btn btn-tonal" id="editBtn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          Edit source
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ RIGHT: the recasts ============ -->
+    <section class="pane pane-out" id="paneOut" aria-label="Converted versions">
+      <div class="out-empty" id="outEmpty">
+        <div class="out-empty-art" aria-hidden="true">
+          <span class="chip-ico wa"></span><span class="chip-ico ig"></span><span class="chip-ico li"></span><span class="chip-ico rd"></span>
+        </div>
+        <h2>Your recasts land here</h2>
+        <p>Write on the left, press <strong>Convert</strong>. Each tab shows how the post reads on that platform, with a one-tap copy.</p>
+      </div>
+
+      <div class="out" id="out" hidden>
+        <div class="tabs" role="tablist" aria-label="Platform">
+          <button class="tab" role="tab" data-p="wa" aria-selected="true">
+            <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2m0 1.67c4.54 0 8.24 3.7 8.24 8.24 0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.19-1.15l-.3-.17-3.12.82.83-3.04-.2-.32a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24M8.53 7.33c-.16 0-.43.06-.66.31-.22.25-.87.86-.87 2.07 0 1.22.89 2.39 1 2.56.14.17 1.76 2.67 4.25 3.73.59.27 1.05.42 1.41.53.59.19 1.13.16 1.56.1.48-.07 1.46-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.07-.1-.23-.16-.48-.27-.25-.14-1.47-.74-1.69-.82-.23-.08-.37-.12-.56.12-.16.25-.64.81-.78.97-.15.17-.29.19-.53.07-.26-.13-1.06-.39-2-1.23-.74-.66-1.23-1.47-1.38-1.72-.12-.24-.01-.39.11-.5.11-.11.27-.29.37-.44.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.11-.56-1.35-.77-1.84-.2-.48-.4-.42-.56-.43-.14 0-.3-.01-.47-.01"/></svg></span>
+            <span class="tab-name">WhatsApp</span><span class="tab-done" aria-hidden="true">✓</span>
+          </button>
+          <button class="tab" role="tab" data-p="ig" aria-selected="false">
+            <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg></span>
+            <span class="tab-name">Instagram</span><span class="tab-done" aria-hidden="true">✓</span>
+          </button>
+          <button class="tab" role="tab" data-p="li" aria-selected="false">
+            <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zm1.78 13.02H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg></span>
+            <span class="tab-name">LinkedIn</span><span class="tab-done" aria-hidden="true">✓</span>
+          </button>
+          <button class="tab" role="tab" data-p="rd" aria-selected="false">
+            <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 0A12 12 0 1 0 12 24 12 12 0 0 0 12 0zm5.01 4.74c.69 0 1.25.56 1.25 1.25a1.25 1.25 0 0 1-2.5.06l-2.6-.55-.8 3.75c1.83.07 3.48.63 4.68 1.49.31-.32.74-.51 1.21-.51.98 0 1.77.79 1.77 1.77 0 .72-.44 1.34-1.05 1.62.03.17.05.34.05.52 0 2.7-3.13 4.88-7 4.88s-7-2.18-7-4.88c0-.18.02-.35.05-.52a1.77 1.77 0 0 1 .72-3.39c.47 0 .9.19 1.21.51 1.22-.88 2.9-1.44 4.77-1.5l.9-4.2c.02-.1.11-.15.2-.13l2.94.62c.21-.42.65-.71 1.15-.71zM9.25 12a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm5.5 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm-5.47 3.99a.3.3 0 0 0-.21.09.3.3 0 0 0 0 .42c.73.73 2.16.79 2.58.79.42 0 1.85-.05 2.58-.79a.3.3 0 0 0 .01-.42.3.3 0 0 0-.42 0c-.46.46-1.45.63-2.16.63-.71 0-1.7-.17-2.16-.63a.3.3 0 0 0-.22-.09z"/></svg></span>
+            <span class="tab-name">Reddit</span><span class="tab-done" aria-hidden="true">✓</span>
+          </button>
+        </div>
+
+        <div class="stale" id="stale" hidden>
+          <span>Source edited — these previews are from the last convert.</span>
+          <button class="btn btn-sm btn-filled" id="reconvertBtn" type="button">Re-convert</button>
+        </div>
+
+        <!-- WhatsApp -->
+        <div class="frame frame-wa" data-p="wa" role="tabpanel">
+          <div class="wa-bar">
+            <img class="wa-avatar" src="yourcardjourney.png" alt="" onerror="this.style.display='none'" />
+            <div class="wa-bar-text"><strong>YourCardJourney</strong><span>Channel · 1.2K followers</span></div>
+          </div>
+          <div class="wa-wall">
+            <div class="wa-bubble"><div class="wa-body" id="waPreview"></div><span class="wa-time">now <i>✓✓</i></span></div>
+          </div>
+          <div class="frame-foot">
+            <div class="frame-note"><span class="count" id="waCount"></span> <span class="note-text" id="waNote"></span></div>
+            <div class="frame-actions">
+              <button class="btn btn-sm btn-text raw-toggle" data-raw="wa" type="button">Raw</button>
+              <button class="btn btn-sm copy wa" data-copy="wa" type="button">Copy for WhatsApp</button>
+            </div>
+          </div>
+          <pre class="raw" id="waRaw" hidden></pre>
+        </div>
+
+        <!-- Instagram -->
+        <div class="frame frame-ig" data-p="ig" role="tabpanel" hidden>
+          <div class="ig-head">
+            <span class="ig-ring"><img src="yourcardjourney.png" alt="" onerror="this.style.display='none'" /></span>
+            <div class="ig-head-text"><strong>yourcardjourney</strong><span>Original audio</span></div>
+            <span class="ig-more">···</span>
+          </div>
+          <div class="ig-media" aria-hidden="true"><span>Your creative goes here</span></div>
+          <div class="ig-icons" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l2-5.2A8.4 8.4 0 1 1 21 11.5z"/></svg>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+            <svg class="ig-save" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="ig-caption"><strong>yourcardjourney</strong> <span id="igPreview"></span></div>
+          <div class="frame-foot">
+            <div class="frame-note"><span class="count" id="igCount"></span> <span class="note-text" id="igNote"></span></div>
+            <div class="frame-actions">
+              <button class="btn btn-sm btn-text raw-toggle" data-raw="ig" type="button">Raw</button>
+              <button class="btn btn-sm copy ig" data-copy="ig" type="button">Copy caption</button>
+            </div>
+          </div>
+          <pre class="raw" id="igRaw" hidden></pre>
+        </div>
+
+        <!-- LinkedIn -->
+        <div class="frame frame-li" data-p="li" role="tabpanel" hidden>
+          <div class="li-head">
+            <img class="li-avatar" src="yourcardjourney.png" alt="" onerror="this.style.display='none'" />
+            <div class="li-head-text"><strong>YourCardJourney <small>· 1st</small></strong><span>Credit cards, gift cards &amp; deals · India</span><span class="li-time">Just now · 🌐</span></div>
+          </div>
+          <div class="li-body" id="liPreview"></div>
+          <div class="li-react" aria-hidden="true"><span>👍 ❤️ 💡</span><span>12 · 3 comments</span></div>
+          <div class="frame-foot">
+            <div class="frame-note"><span class="count" id="liCount"></span> <span class="note-text" id="liNote"></span></div>
+            <div class="frame-actions">
+              <button class="btn btn-sm btn-text raw-toggle" data-raw="li" type="button">Raw</button>
+              <button class="btn btn-sm copy li" data-copy="li" type="button">Copy for LinkedIn</button>
+            </div>
+          </div>
+          <pre class="raw" id="liRaw" hidden></pre>
+        </div>
+
+        <!-- Reddit -->
+        <div class="frame frame-rd" data-p="rd" role="tabpanel" hidden>
+          <div class="rd-head">
+            <span class="rd-sub-ico" aria-hidden="true"></span>
+            <div class="rd-head-text"><strong>r/CreditCardsIndia</strong><span>Posted by u/YourCardJourney · just now</span></div>
+          </div>
+          <h3 class="rd-title" id="rdTitle"></h3>
+          <div class="rd-body" id="rdPreview"></div>
+          <div class="rd-vote" aria-hidden="true"><span>⬆ 42 ⬇</span><span>💬 7 comments</span><span>↗ Share</span></div>
+          <div class="frame-foot">
+            <div class="frame-note"><span class="count" id="rdCount"></span> <span class="note-text" id="rdNote"></span></div>
+            <div class="frame-actions">
+              <button class="btn btn-sm btn-text raw-toggle" data-raw="rd" type="button">Raw</button>
+              <button class="btn btn-sm copy rd alt" data-copy="rdTitle" type="button">Copy title</button>
+              <button class="btn btn-sm copy rd" data-copy="rd" type="button">Copy body</button>
+            </div>
+          </div>
+          <pre class="raw" id="rdRaw" hidden></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-credit">
+    <span class="credit-text">Shared by <a class="handle" href="https://yourcardjourney.store/">@YourCardJourney</a> · runs entirely in your browser, nothing is uploaded</span>
+  </footer>
+
+  <!-- Settings -->
+  <div class="scrim" id="settingsScrim" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sTitle">
+      <h2 id="sTitle">Recast settings</h2>
+      <p class="sub">Sign-offs and hashtags added to each version. Saved on this device.</p>
+      <div class="fields">
+        <div class="fld"><label for="sWaFoot">WhatsApp sign-off</label><input id="sWaFoot" /></div>
+        <div class="fld"><label for="sIgFoot">Instagram sign-off</label><input id="sIgFoot" /></div>
+        <div class="fld"><label for="sIgLink">Instagram link line (replaces URLs)</label><input id="sIgLink" /></div>
+        <div class="fld"><label for="sIgTags">Instagram default hashtags</label><input id="sIgTags" /></div>
+        <div class="fld"><label for="sLiFoot">LinkedIn sign-off</label><input id="sLiFoot" /></div>
+        <div class="fld"><label for="sLiTags">LinkedIn default hashtags (max 5 used)</label><input id="sLiTags" /></div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-text" id="sReset" type="button">Reset</button>
+        <button class="btn btn-text" id="sCancel" type="button">Cancel</button>
+        <button class="btn btn-filled" id="sSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="snack" id="snack" role="status" aria-live="polite" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
