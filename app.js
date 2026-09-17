@@ -81,6 +81,11 @@
   const demention = (s) => s.replace(RX.mention, '$1$2');
   const stripEmoji = (s) => s.replace(RX.emoji, '').replace(/\s{2,}/g, ' ').trim();
   const stripUrls = (s) => s.replace(RX.url, '').replace(/\s{2,}/g, ' ').trim();
+  // Hand-written WhatsApp *bold* in the source: drop the stars for platforms with no
+  // bold, turn them into Markdown for Reddit.
+  const STAR = /(^|[\s(])\*([^*\n]+?)\*(?=[\s.,!?:;)]|$)/g;
+  const unstar = (s) => s.replace(STAR, '$1$2');
+  const mdstar = (s) => s.replace(STAR, '$1**$2**');
 
   // Wrap money, percentages and coupon codes. `bold`/`code` are (s) => s.
   function emph(s, bold, code) {
@@ -99,7 +104,7 @@
     const B = (s) => `*${s}*`, C = (s) => '```' + s + '```';
     const out = [];
     const notes = [];
-    if (p.headline) out.push(B(demention(detag(stripTrailingTags(p.headline)))));
+    if (p.headline) out.push(B(unstar(demention(detag(stripTrailingTags(p.headline))))));
     if (p.body.length) out.push('');
     let lastBlank = false;
     for (const it of p.body) {
@@ -119,7 +124,7 @@
   function toInstagram(p) {
     const out = [];
     const notes = [];
-    const plain = (s) => stripUrls(demention(detag(s)));
+    const plain = (s) => unstar(stripUrls(demention(detag(s))));
     if (p.headline) out.push(plain(stripTrailingTags(p.headline)));
     if (p.body.length) out.push('');
     let lastBlank = false;
@@ -140,7 +145,7 @@
 
   function toLinkedIn(p) {
     const out = [];
-    const plain = (s) => demention(detag(s));
+    const plain = (s) => unstar(demention(detag(s)));
     if (p.headline) out.push(uniBold(plain(stripTrailingTags(p.headline))));
     if (p.body.length) out.push('');
     let lastBlank = false;
@@ -161,8 +166,8 @@
 
   function toReddit(p) {
     const B = (s) => `**${s}**`, C = (s) => '`' + s + '`';
-    const md = (s) => emph(demention(detag(s)), B, C);
-    const title = stripEmoji(demention(detag(stripUrls(stripTrailingTags(p.headline))))).replace(/[.!:\s]+$/, '').slice(0, 300);
+    const md = (s) => emph(mdstar(demention(detag(s))), B, C);
+    const title = unstar(stripEmoji(demention(detag(stripUrls(stripTrailingTags(p.headline)))))).replace(/[.!:\s]+$/, '').slice(0, 300);
     const out = [];
     let kvRun = [];
     const flushKv = () => {
@@ -244,7 +249,11 @@
 
   try { src.value = localStorage.getItem('rc.draft') || ''; } catch (e) { /* ignore */ }
 
+  // The box grows with the post, like the WhatsApp bubble does - never an inner scrollbar.
+  function autosize() { src.style.height = 'auto'; src.style.height = Math.max(240, src.scrollHeight + 4) + 'px'; }
+
   function updateCount() {
+    autosize();
     const n = [...src.value].length;
     $('count').textContent = n;
     $('count').classList.toggle('over', n > 280);
@@ -332,6 +341,25 @@
   $('reconvertBtn').addEventListener('click', convert);
   $('editBtn').addEventListener('click', () => { setLocked(false); src.focus(); });
   $('clearBtn').addEventListener('click', () => { src.value = ''; updateCount(); src.focus(); });
+
+  // Master reset: back to a blank page - post, versions, lock, progress, draft.
+  // Sign-off settings are kept; they are configuration, not work in progress.
+  function masterReset() {
+    src.value = ''; try { localStorage.removeItem('rc.draft'); } catch (e) { /* ignore */ }
+    state.converted = null; state.done.clear(); state.active = 'wa';
+    setLocked(false); out.hidden = true; outEmpty.hidden = false; out.classList.remove('is-stale'); $('stale').hidden = true;
+    ['wa', 'ig', 'li', 'rd'].forEach((k) => { $(k + 'Preview').innerHTML = ''; $(k + 'Raw').textContent = ''; $(k + 'Raw').hidden = true; });
+    $('rdTitle').textContent = '';
+    document.querySelectorAll('.raw-toggle').forEach((b) => { b.textContent = 'Raw'; });
+    document.querySelectorAll('.tab').forEach((t) => t.classList.remove('is-done'));
+    document.querySelectorAll('.copy').forEach((b) => { b.classList.remove('is-copied'); b.textContent = b.dataset.label || b.textContent; });
+    showTab('wa'); renderProgress(); updateCount(); window.scrollTo({ top: 0, behavior: 'smooth' }); src.focus();
+    snack('Everything reset');
+  }
+  $('resetBtn').addEventListener('click', () => {
+    if (!src.value.trim() && !state.converted) { snack('Already empty'); return; }
+    if (confirm('Master reset? This clears the post, all four versions and the posted progress.')) masterReset();
+  });
   $('pasteBtn').addEventListener('click', async () => {
     try { const t = await navigator.clipboard.readText(); if (t) { src.value = t; src.dispatchEvent(new Event('input')); } }
     catch (e) { snack('Clipboard blocked — press Ctrl+V in the box'); src.focus(); }
