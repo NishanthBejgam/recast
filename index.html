@@ -42,6 +42,10 @@
       </a>
       <div class="topbar-actions">
         <span class="progress" id="progress" hidden><span class="progress-dots" id="progressDots"></span><span id="progressText">0 of 4 posted</span></span>
+        <button class="sync-pill" id="syncPill" type="button" hidden title="Cross-device sync — click to change the sync code">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A7 7 0 0 0 4.3 12.5 3.5 3.5 0 0 0 6 19z"/></svg>
+          <span id="syncText">Synced</span>
+        </button>
         <button class="reset-btn" id="resetBtn" type="button" title="Master reset — clear the post, all versions and progress">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
           <span>Master reset</span>
@@ -241,6 +245,11 @@
         <div class="fld"><label for="sIgTags">Instagram default hashtags</label><input id="sIgTags" /></div>
         <div class="fld"><label for="sLiFoot">LinkedIn sign-off</label><input id="sLiFoot" /></div>
         <div class="fld"><label for="sLiTags">LinkedIn default hashtags (max 5 used)</label><input id="sLiTags" /></div>
+        <div class="fld fld-sync">
+          <label for="sSync">Sync code — same code on phone and desktop</label>
+          <input id="sSync" placeholder="e.g. ycj-nishanth-2026" autocomplete="off" autocapitalize="off" spellcheck="false" />
+          <small>Your post, the lock and the posted ✓s follow you to every device that has this code. Leave blank to keep everything on this device only.</small>
+        </div>
       </div>
       <div class="dialog-actions">
         <button class="btn btn-text" id="sReset" type="button">Reset</button>

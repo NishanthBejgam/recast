@@ -32,3 +32,13 @@ switch tabs once converted.
 ## Deploy
 
 GitHub Pages serves `main` at `/`. Push to `main` and it is live in about a minute.
+
+## Cross-device sync (optional)
+
+Set the same **Sync code** (⚙ → Sync code) on every device. The post, the lock and the
+posted ✓s then follow you — convert on the desktop, open the phone and it is already
+locked with the same progress. Backed by `worker/worker.js`, a Cloudflare Worker + KV at
+`https://recast-sync.yourcardjourney.workers.dev` (deploy from `worker/` with
+`npx wrangler deploy`). The code never leaves the device: its SHA-256 names the room.
+Anyone who knows the code shares the room, so pick something private. Rooms expire after
+30 days without a write. Leave the field blank to stay device-local.

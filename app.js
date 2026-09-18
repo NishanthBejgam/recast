@@ -273,7 +273,7 @@
     $('hints').innerHTML = h.map((x) => `<span>${esc(x)}</span>`).join('') + (n > 280 ? '<span class="warn">over 280 — fine for X Premium</span>' : '');
   }
 
-  function convert() {
+  function convert(quiet) {
     const p = parse(src.value);
     if (!p.raw) return;
     const r = { wa: toWhatsApp(p), ig: toInstagram(p), li: toLinkedIn(p), rd: toReddit(p) };
@@ -296,7 +296,8 @@
     document.querySelectorAll('.tab').forEach((t) => t.classList.remove('is-done'));
     document.querySelectorAll('.copy').forEach((b) => { b.classList.remove('is-copied'); b.textContent = b.dataset.label || b.textContent; });
     setLocked(true); renderProgress();
-    if (matchMedia('(max-width: 960px)').matches) setTimeout(() => out.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    if (!quiet) schedulePush();
+    if (!quiet && matchMedia('(max-width: 960px)').matches) setTimeout(() => out.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }
   function setNote(k, r) {
     const n = [...r.text].length; const c = $(k + 'Count');
@@ -335,17 +336,17 @@
     updateCount();
     try { localStorage.setItem('rc.draft', src.value); } catch (e) { /* ignore */ }
     if (state.converted) { out.classList.add('is-stale'); $('stale').hidden = false; }
+    schedulePush(1200);
   });
   src.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !convertBtn.disabled) convert(); });
   convertBtn.addEventListener('click', convert);
   $('reconvertBtn').addEventListener('click', convert);
-  $('editBtn').addEventListener('click', () => { setLocked(false); src.focus(); });
+  $('editBtn').addEventListener('click', () => { setLocked(false); src.focus(); schedulePush(); });
   $('clearBtn').addEventListener('click', () => { src.value = ''; updateCount(); src.focus(); });
 
   // Master reset: back to a blank page - post, versions, lock, progress, draft.
   // Sign-off settings are kept; they are configuration, not work in progress.
-  function masterReset() {
-    src.value = ''; try { localStorage.removeItem('rc.draft'); } catch (e) { /* ignore */ }
+  function clearOutputs() {
     state.converted = null; state.done.clear(); state.active = 'wa';
     setLocked(false); out.hidden = true; outEmpty.hidden = false; out.classList.remove('is-stale'); $('stale').hidden = true;
     ['wa', 'ig', 'li', 'rd'].forEach((k) => { $(k + 'Preview').innerHTML = ''; $(k + 'Raw').textContent = ''; $(k + 'Raw').hidden = true; });
@@ -353,7 +354,12 @@
     document.querySelectorAll('.raw-toggle').forEach((b) => { b.textContent = 'Raw'; });
     document.querySelectorAll('.tab').forEach((t) => t.classList.remove('is-done'));
     document.querySelectorAll('.copy').forEach((b) => { b.classList.remove('is-copied'); b.textContent = b.dataset.label || b.textContent; });
-    showTab('wa'); renderProgress(); updateCount(); window.scrollTo({ top: 0, behavior: 'smooth' }); src.focus();
+    showTab('wa'); renderProgress();
+  }
+  function masterReset() {
+    src.value = ''; try { localStorage.removeItem('rc.draft'); } catch (e) { /* ignore */ }
+    clearOutputs(); updateCount(); window.scrollTo({ top: 0, behavior: 'smooth' }); src.focus();
+    schedulePush();
     snack('Everything reset');
   }
   $('resetBtn').addEventListener('click', () => {
@@ -377,7 +383,7 @@
       if (!(await copyText(t))) { snack('Copy failed — use the Raw view and select it'); return; }
       b.classList.add('is-copied'); b.textContent = 'Copied ✓';
       setTimeout(() => { b.classList.remove('is-copied'); b.textContent = b.dataset.label; }, 1600);
-      if (k !== 'rdTitle') { state.done.add(p); document.querySelector(`.tab[data-p="${p}"]`).classList.add('is-done'); renderProgress(); }
+      if (k !== 'rdTitle') { state.done.add(p); document.querySelector(`.tab[data-p="${p}"]`).classList.add('is-done'); renderProgress(); schedulePush(); }
       snack(k === 'rdTitle' ? 'Reddit title copied' : `${NAMES[p]} version copied — paste it in the app`);
     });
   });
@@ -394,8 +400,9 @@
 
   // Settings
   const S = { waFoot: 'sWaFoot', igFoot: 'sIgFoot', igLink: 'sIgLink', igTags: 'sIgTags', liFoot: 'sLiFoot', liTags: 'sLiTags' };
+  const syncField = $('sSync');
   const fill = (obj) => Object.entries(S).forEach(([k, id]) => { $(id).value = obj[k] || ''; });
-  $('settingsBtn').addEventListener('click', () => { fill(settings); $('settingsScrim').hidden = false; $('sWaFoot').focus(); });
+  $('settingsBtn').addEventListener('click', () => { fill(settings); syncField.value = sync.code; $('settingsScrim').hidden = false; $('sWaFoot').focus(); });
   $('sCancel').addEventListener('click', () => { $('settingsScrim').hidden = true; });
   $('settingsScrim').addEventListener('click', (e) => { if (e.target === e.currentTarget) $('settingsScrim').hidden = true; });
   $('sReset').addEventListener('click', () => fill(DEFAULTS));
@@ -403,9 +410,93 @@
     Object.entries(S).forEach(([k, id]) => { settings[k] = $(id).value; });
     try { localStorage.setItem('rc.settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
     $('settingsScrim').hidden = true; snack('Settings saved');
-    if (state.converted) convert();
+    if (state.converted) convert(true);
+    setSyncCode(syncField.value.trim());
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('settingsScrim').hidden = true; });
 
+  /* ---------------- cross-device sync ----------------
+     One JSON room per sync code on a Cloudflare Worker (worker/worker.js).
+     The code never leaves the device: its SHA-256 is the room name. Every
+     change (typing, convert, copy, unlock, reset) is pushed after a short
+     debounce; the page pulls on load, on focus and every few seconds while
+     visible. The Worker keeps a revision counter so a stale device gets the
+     newer document instead of overwriting it. Outputs are not synced - they
+     are recomputed from the source, which is deterministic. */
+  const SYNC_URL = 'https://recast-sync.yourcardjourney.workers.dev/s/';
+  const sync = { code: '', key: '', rev: 0, applying: false, timer: null, poll: null, state: 'off' };
+  try { sync.code = localStorage.getItem('rc.sync') || ''; } catch (e) { /* ignore */ }
+  const DEVICE = /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'phone' : 'desktop';
+
+  async function sha256(s) {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('recast:' + s));
+    return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+  }
+  function setSyncState(st, msg) {
+    sync.state = st; const el = $('syncPill'); el.hidden = st === 'off'; el.dataset.state = st;
+    $('syncText').textContent = msg || { ok: 'Synced', busy: 'Syncing\u2026', err: 'Offline', off: '' }[st];
+  }
+  function snapshot() {
+    return { baseRev: sync.rev, src: src.value, locked: state.locked, converted: !!state.converted, done: [...state.done], device: DEVICE };
+  }
+  function schedulePush(ms) {
+    if (!sync.key || sync.applying) return;
+    clearTimeout(sync.timer); sync.timer = setTimeout(push, ms || 400);
+  }
+  async function push() {
+    if (!sync.key || sync.applying) return;
+    setSyncState('busy');
+    try {
+      const r = await fetch(SYNC_URL + sync.key, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot()) });
+      const j = await r.json();
+      if (r.status === 409) { apply(j); return; }
+      if (!r.ok) throw new Error(j.error || r.status);
+      sync.rev = j.rev; setSyncState('ok');
+    } catch (e) { setSyncState('err'); }
+  }
+  async function pull(force) {
+    if (!sync.key) return;
+    try {
+      const r = await fetch(SYNC_URL + sync.key, { cache: 'no-store' });
+      if (r.status === 404) { if (force) push(); else setSyncState('ok'); return; }
+      const j = await r.json();
+      if (j.rev > sync.rev || force) apply(j); else setSyncState('ok');
+    } catch (e) { setSyncState('err'); }
+  }
+  function apply(st) {
+    sync.applying = true;
+    try {
+      if (st.src !== src.value) { src.value = st.src || ''; try { localStorage.setItem('rc.draft', src.value); } catch (e) { /* ignore */ } }
+      updateCount();
+      if (st.converted && src.value.trim()) {
+        convert(true);
+        (st.done || []).forEach((p) => { state.done.add(p); const t = document.querySelector(`.tab[data-p="${p}"]`); if (t) t.classList.add('is-done'); });
+        renderProgress();
+        if (!st.locked) setLocked(false);
+      } else {
+        clearOutputs();
+      }
+      sync.rev = st.rev || 0;
+      setSyncState('ok', st.device && st.device !== DEVICE ? `Synced from ${st.device}` : 'Synced');
+    } finally { sync.applying = false; }
+  }
+  async function setSyncCode(code) {
+    const changed = code !== sync.code;
+    sync.code = code; try { localStorage.setItem('rc.sync', code); } catch (e) { /* ignore */ }
+    clearInterval(sync.poll); sync.poll = null;
+    if (!code) { sync.key = ''; sync.rev = 0; setSyncState('off'); return; }
+    if (!crypto.subtle) { setSyncState('err', 'Needs https'); return; }
+    sync.key = await sha256(code);
+    if (changed) sync.rev = 0;
+    setSyncState('busy');
+    // Joining a room: whatever is already there wins; an empty room gets this device's state.
+    await pull(true);
+    sync.poll = setInterval(() => { if (document.visibilityState === 'visible') pull(); }, 8000);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); });
+  window.addEventListener('focus', () => pull());
+  $('syncPill').addEventListener('click', () => { if (sync.state === 'err') pull(); else $('settingsBtn').click(); });
+
   updateCount();
+  setSyncCode(sync.code);
 })();

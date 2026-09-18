@@ -1,0 +1,9 @@
+# Deploy with:  npx wrangler deploy   (from this folder)
+# The KV namespace was created once with:  npx wrangler kv namespace create RC
+name = "recast-sync"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[kv_namespaces]]
+binding = "RC"
+id = "e314522732a148d8aafc04e45c621c17"
