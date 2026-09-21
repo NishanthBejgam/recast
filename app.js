@@ -65,8 +65,16 @@
     // Headline = first line that carries words (not a bare link or tag row).
     let head = -1;
     for (let i = 0; i < items.length; i++) { if (['text', 'kv', 'bullet'].includes(items[i].t)) { head = i; break; } }
-    const headline = head >= 0 ? items[head].text : '';
+    let headline = head >= 0 ? items[head].text : '';
     const body = items.filter((_, i) => i !== head);
+    // A post written as one paragraph: the first sentence is the hook, the rest is body.
+    if (head >= 0 && items[head].t === 'text' && (headline.match(/\S+/g) || []).length > 16) {
+      const m = headline.match(/^(.{12,}?[.!?])(?:\s+)(?=\S)/);
+      if (m && (headline.slice(m[0].length).match(/\S+/g) || []).length >= 4) {
+        body.unshift({ t: 'text', text: headline.slice(m[0].length).trim() });
+        headline = m[1].trim();
+      }
+    }
     // trim leading/trailing blanks of body
     while (body.length && body[0].t === 'blank') body.shift();
     while (body.length && body[body.length - 1].t === 'blank') body.pop();
@@ -79,8 +87,6 @@
   }
   const uniq = (a) => [...new Set(a)];
   const isCodeKey = (k) => /\b(code|coupon|promo|voucher)\b/i.test(k);
-  // "So the play is:" / "How to:" — a short line that ends in a colon introduces what follows.
-  const isSubhead = (l) => l.length <= 48 && /:$/.test(l) && !/https?:/.test(l);
 
   /* ---------------- shared helpers ---------------- */
   // Drop the # but keep the word, so "#Myntra sale" reads "Myntra sale".
@@ -95,42 +101,17 @@
   const unstar = (s) => s.replace(STAR, '$1$2');
   const mdstar = (s) => s.replace(STAR, '$1**$2**');
 
-  // Wrap money, percentages and coupon codes. `bold`/`code` are (s) => s.
-  function emph(s, bold, code) {
-    if (/```|`[^`]+`|\*\*/.test(s)) return s; // already Markdown/mono — leave it
-    let out = s;
-    const spans = [];
-    const mark = (rx, fn) => { out = out.replace(rx, (m, ...rest) => { const key = `\uE000${spans.length}\uE001`; spans.push(fn(m, rest)); return key; }); };
-    // The author's own *bold* and _italic_ spans are kept verbatim and never re-marked.
-    mark(/(^|[\s(])([*_])([^*_\n]+?)\2(?=[\s.,!?:;)]|$)/g, (m, g) => g[0] + (g[1] === '*' ? bold(g[2]) : m.slice(g[0].length)));
-    mark(RX.code, (m, g) => m.replace(g[0], code(g[0])));
-    mark(RX.price, (m) => bold(m.trim()));
-    mark(RX.pct, (m) => bold(m.trim()));
-    mark(RX.date, (m) => bold(m));
-    mark(RX.hot, (m) => bold(m));
-    mark(RX.qty, (m) => bold(m));
-    // Bold spans separated only by a space merge into one, so "*flat* *10%*" reads "*flat 10%*".
-    for (let again = true; again;) {
-      again = false;
-      out = out.replace(/\uE000(\d+)\uE001 \uE000(\d+)\uE001/g, (m, a, b) => {
-        const jn = joinBold(spans[+a], spans[+b], bold);
-        if (!jn) return m; again = true; spans.push(jn); return `\uE000${spans.length - 1}\uE001`;
-      });
-    }
-    return out.replace(/\uE000(\d+)\uE001/g, (_, i) => spans[+i]);
-  }
-  function joinBold(a, b, bold) {
-    const inner = (t) => { const one = bold('\u0001').split('\u0001'); return t.startsWith(one[0]) && t.endsWith(one[1]) && t.length > one[0].length + one[1].length ? t.slice(one[0].length, t.length - one[1].length) : null; };
-    const x = inner(a), y = inner(b);
-    return x !== null && y !== null ? bold(x + ' ' + y) : null;
-  }
+  // All emphasis decisions live in emphasis.js (RCEmph). This wrapper keeps the
+  // writers short: emph(line, format, kind).
+  const EF = RCEmph.FORMATS;
+  const emph = (line, F, kind, profile) => RCEmph.emphasize(line, F, { kind: kind || 'text', profile: profile || 'rich' });
 
   /* ---------------- writers ---------------- */
   function toWhatsApp(p) {
-    const B = (s) => `*${s}*`, C = (s) => '```' + s + '```';
+    const F = EF.whatsapp, B = F.b, C = F.c;
     const out = [];
     const notes = [];
-    if (p.headline) out.push(B(unstar(demention(detag(stripTrailingTags(p.headline))))));
+    if (p.headline) out.push(emph(demention(detag(stripTrailingTags(p.headline))), F, 'head'));
     if (p.body.length) out.push('');
     let lastBlank = false;
     for (const it of p.body) {
@@ -138,10 +119,9 @@
       lastBlank = false;
       if (it.t === 'tags') continue;
       if (it.t === 'url') { out.push(`👉 ${it.url}`); continue; }
-      if (it.t === 'kv') { out.push(`${B(it.key + ':')} ${isCodeKey(it.key) ? C(it.val) : emph(demention(detag(it.val)), B, C)}`); continue; }
-      if (it.t === 'bullet') { const g = /^[\d.)]+$/.test(it.glyph) || HAS_EMOJI.test(it.glyph) ? it.glyph : '•'; out.push(`${g} ${emph(demention(detag(it.text)), B, C)}`); continue; }
-      const line = unstar(demention(detag(it.text)));
-      out.push(isSubhead(line) ? B(line) : emph(demention(detag(it.text)), B, C));
+      if (it.t === 'kv') { out.push(`${B(it.key + ':')} ${isCodeKey(it.key) ? C(it.val) : emph(demention(detag(it.val)), F, 'kv')}`); continue; }
+      if (it.t === 'bullet') { const g = /^[\d.)]+$/.test(it.glyph) || HAS_EMOJI.test(it.glyph) ? it.glyph : '•'; out.push(`${g} ${emph(demention(detag(it.text)), F, 'bullet')}`); continue; }
+      out.push(emph(demention(detag(it.text)), F, 'text'));
     }
     if (p.tags.length) notes.push(`${p.tags.length} hashtag${p.tags.length > 1 ? 's' : ''} dropped`);
     if (settings.waFoot.trim()) { out.push(''); out.push(settings.waFoot.trim()); }
@@ -152,16 +132,18 @@
     const out = [];
     const notes = [];
     const plain = (s) => unstar(stripUrls(demention(detag(s))));
-    if (p.headline) out.push(plain(stripTrailingTags(p.headline)));
+    const F = EF.unicode;
+    const em = (s, kind) => emph(plain(s), F, kind, 'light');
+    if (p.headline) out.push(em(stripTrailingTags(p.headline), 'head'));
     if (p.body.length) out.push('');
     let lastBlank = false;
     for (const it of p.body) {
       if (it.t === 'blank') { if (!lastBlank) out.push(''); lastBlank = true; continue; }
       lastBlank = false;
       if (it.t === 'tags' || it.t === 'url') continue;
-      if (it.t === 'kv') { out.push(`${it.key} ➜ ${plain(it.val)}`); continue; }
-      if (it.t === 'bullet') { const g = HAS_EMOJI.test(it.glyph) ? it.glyph : '✔️'; out.push(`${g} ${plain(it.text)}`); continue; }
-      const t = plain(it.text); if (t) out.push(t);
+      if (it.t === 'kv') { out.push(`${it.key} ➜ ${em(it.val, 'kv')}`); continue; }
+      if (it.t === 'bullet') { const g = HAS_EMOJI.test(it.glyph) ? it.glyph : '✔️'; out.push(`${g} ${em(it.text, 'bullet')}`); continue; }
+      const t = plain(it.text); if (t) out.push(em(it.text, 'text'));
     }
     if (p.urls.length) { out.push(''); out.push(settings.igLink.trim() || '🔗 Link in bio'); notes.push(`${p.urls.length} link${p.urls.length > 1 ? 's' : ''} → "link in bio"`); }
     if (settings.igFoot.trim()) { out.push(''); out.push(settings.igFoot.trim()); }
@@ -173,7 +155,9 @@
   function toLinkedIn(p) {
     const out = [];
     const plain = (s) => unstar(demention(detag(s)));
-    if (p.headline) out.push(uniBold(plain(stripTrailingTags(p.headline))));
+    const F = EF.unicode;
+    const em = (s, kind) => emph(plain(s), F, kind, 'light');
+    if (p.headline) out.push(em(stripTrailingTags(p.headline), 'head'));
     if (p.body.length) out.push('');
     let lastBlank = false;
     for (const it of p.body) {
@@ -181,9 +165,9 @@
       lastBlank = false;
       if (it.t === 'tags') continue;
       if (it.t === 'url') { out.push(`🔗 ${it.url}`); continue; }
-      if (it.t === 'kv') { out.push(`${it.key}: ${plain(it.val)}`); continue; }
-      if (it.t === 'bullet') { out.push(`→ ${plain(it.text)}`); continue; }
-      out.push(plain(it.text));
+      if (it.t === 'kv') { out.push(`${it.key}: ${em(it.val, 'kv')}`); continue; }
+      if (it.t === 'bullet') { out.push(`→ ${em(it.text, 'bullet')}`); continue; }
+      out.push(em(it.text, 'text'));
     }
     if (settings.liFoot.trim()) { out.push(''); out.push(settings.liFoot.trim()); }
     const tags = uniq([...p.tags, ...tagList(settings.liTags)]).slice(0, 5);
@@ -192,14 +176,14 @@
   }
 
   function toReddit(p) {
-    const B = (s) => `**${s}**`, C = (s) => '`' + s + '`';
-    const md = (s) => emph(mdstar(demention(detag(s))), B, C);
+    const F = EF.reddit, B = F.b, C = F.c;
+    const md = (s, kind) => emph(demention(detag(s)), F, kind || 'text');
     const title = unstar(stripEmoji(demention(detag(stripUrls(stripTrailingTags(p.headline)))))).replace(/[.!:\s]+$/, '').slice(0, 300);
     const out = [];
     let kvRun = [];
     const flushKv = () => {
       if (!kvRun.length) return;
-      const val = (k) => isCodeKey(k.key) ? C(k.val) : md(k.val);
+      const val = (k) => isCodeKey(k.key) ? C(k.val) : md(k.val, 'kv');
       if (kvRun.length === 1) { out.push(`${B(kvRun[0].key + ':')} ${val(kvRun[0])}`, ''); }
       else { out.push('| Detail | Value |', '|---|---|'); for (const k of kvRun) out.push(`| ${k.key} | ${val(k).replace(/\|/g, '\\|')} |`); out.push(''); }
       kvRun = [];
@@ -211,7 +195,7 @@
       if (it.t === 'blank') { if (listOpen) { out.push(''); listOpen = false; } continue; }
       if (it.t === 'tags') continue;
       if (it.t === 'url') { if (listOpen) { out.push(''); listOpen = false; } out.push(it.url, ''); continue; }
-      if (it.t === 'bullet') { out.push(`- ${md(it.text)}`); listOpen = true; continue; }
+      if (it.t === 'bullet') { out.push(`- ${md(it.text, 'bullet')}`); listOpen = true; continue; }
       if (listOpen) { out.push(''); listOpen = false; }
       out.push(md(it.text), '');
     }
@@ -224,16 +208,7 @@
 
   const tagList = (s) => (s || '').split(/[\s,]+/).map((t) => t.replace(/^#/, '')).filter(Boolean);
   function tidy(lines) { return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim(); }
-  // Mathematical sans-serif bold — the only "bold" LinkedIn will show.
-  function uniBold(s) {
-    return [...s].map((ch) => {
-      const c = ch.codePointAt(0);
-      if (c >= 65 && c <= 90) return String.fromCodePoint(0x1D5D4 + c - 65);
-      if (c >= 97 && c <= 122) return String.fromCodePoint(0x1D5EE + c - 97);
-      if (c >= 48 && c <= 57) return String.fromCodePoint(0x1D7EC + c - 48);
-      return ch;
-    }).join('');
-  }
+  const uniBold = RCEmph.uniBold;
 
   /* ---------------- preview renderers (text → safe HTML) ---------------- */
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
