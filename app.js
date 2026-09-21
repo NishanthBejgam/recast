@@ -30,10 +30,16 @@
     tagOnly: /^(?:\s*#[\p{L}\p{N}_]+\s*)+$/u,
     mention: /(^|[\s(])@([A-Za-z0-9_]{2,})/g,
     bullet: /^\s*(?:[-*•▪▫◦➤➜→›»✅✔️✔☑️🔥💥⚡️⚡🎯👉👇✨🔹🔸🟢🟣🟠🔴⭐️⭐📌🛒💳🎁🏷️🏷]+|\d{1,2}[.)])\s+(.+)$/u,
-    kv: /^\s*([^:\n]{1,32}?)\s*:\s+(.+)$/,
+    kv: /^\s*([^:\n.!?]{1,32}?)\s*:\s+(.+)$/,
     price: /(?:₹|Rs\.?\s?|INR\s?)\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:k|K|L|lakh|cr))?/g,
     pct: /\b\d{1,3}(?:\.\d+)?\s?%(?:\s?(?:off|OFF|Off|cashback|Cashback|CB|discount))?/g,
     code: /\b(?:code|coupon|promo|promo\s?code|use)\s*[:\-–]?\s*([A-Z][A-Z0-9]{3,})\b/gi,
+    // "5 orders", "4 Amazon accounts", "×4", "2 days", "3x" — quantities that decide the deal
+    qty: /(?:[×x]\s?\d+|\b\d+(?:,\d{3})*\s?(?:[×x]|times)\b|\b\d+(?:,\d{3})*(?:\s[A-Za-z]+)?\s(?:orders?|accounts?|users?|cards?|txns?|transactions?|days?|hours?|hrs|mins?|minutes?|weeks?|months?|coins?|units?|pcs|pieces?|vouchers?|slots?|seats?|gm|grams?|kg|litres?)\b)/gi,
+    // dates and deadlines
+    date: /\b(?:\d{1,2}(?:st|nd|rd|th)?\s(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*(?:\s\d{2,4})?|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s\d{1,2}(?:st|nd|rd|th)?(?:,?\s\d{4})?|today only|tonight|midnight|till midnight|this weekend|last day|ends today|ends tonight)\b/gi,
+    // deal words a reader scans for
+    hot: /\b(?:LIVE(?:\snow)?|is live|now live|free(?:\sdelivery|\sshipping)?|flat|instant discount|cashback|cash back|no[-\s]cost EMI|buy\s\d\sget\s\d|BOGO|limited (?:time|stock|period)|expir(?:es|ing|y)|valid (?:till|until|on)|lowest (?:ever|price)|all[-\s]time low|price drop|stackable|extra (?:\d+%\s)?off|per (?:account|card|user|order|month)|max(?:imum)?(?:\scap)?|min(?:imum)?(?:\sorder|\sspend)?|first (?:\d+\s)?(?:orders?|users?|time)|new users?|exclusive|only)\b/gi,
     emoji: /[\p{Extended_Pictographic}️‍]/gu,
   };
   const HAS_EMOJI = /\p{Extended_Pictographic}/u;
@@ -73,6 +79,8 @@
   }
   const uniq = (a) => [...new Set(a)];
   const isCodeKey = (k) => /\b(code|coupon|promo|voucher)\b/i.test(k);
+  // "So the play is:" / "How to:" — a short line that ends in a colon introduces what follows.
+  const isSubhead = (l) => l.length <= 48 && /:$/.test(l) && !/https?:/.test(l);
 
   /* ---------------- shared helpers ---------------- */
   // Drop the # but keep the word, so "#Myntra sale" reads "Myntra sale".
@@ -89,14 +97,32 @@
 
   // Wrap money, percentages and coupon codes. `bold`/`code` are (s) => s.
   function emph(s, bold, code) {
-    if (/[*_`]/.test(s)) return s; // author already formatted this line — leave it
+    if (/```|`[^`]+`|\*\*/.test(s)) return s; // already Markdown/mono — leave it
     let out = s;
     const spans = [];
     const mark = (rx, fn) => { out = out.replace(rx, (m, ...rest) => { const key = `\uE000${spans.length}\uE001`; spans.push(fn(m, rest)); return key; }); };
+    // The author's own *bold* and _italic_ spans are kept verbatim and never re-marked.
+    mark(/(^|[\s(])([*_])([^*_\n]+?)\2(?=[\s.,!?:;)]|$)/g, (m, g) => g[0] + (g[1] === '*' ? bold(g[2]) : m.slice(g[0].length)));
     mark(RX.code, (m, g) => m.replace(g[0], code(g[0])));
     mark(RX.price, (m) => bold(m.trim()));
     mark(RX.pct, (m) => bold(m.trim()));
+    mark(RX.date, (m) => bold(m));
+    mark(RX.hot, (m) => bold(m));
+    mark(RX.qty, (m) => bold(m));
+    // Bold spans separated only by a space merge into one, so "*flat* *10%*" reads "*flat 10%*".
+    for (let again = true; again;) {
+      again = false;
+      out = out.replace(/\uE000(\d+)\uE001 \uE000(\d+)\uE001/g, (m, a, b) => {
+        const jn = joinBold(spans[+a], spans[+b], bold);
+        if (!jn) return m; again = true; spans.push(jn); return `\uE000${spans.length - 1}\uE001`;
+      });
+    }
     return out.replace(/\uE000(\d+)\uE001/g, (_, i) => spans[+i]);
+  }
+  function joinBold(a, b, bold) {
+    const inner = (t) => { const one = bold('\u0001').split('\u0001'); return t.startsWith(one[0]) && t.endsWith(one[1]) && t.length > one[0].length + one[1].length ? t.slice(one[0].length, t.length - one[1].length) : null; };
+    const x = inner(a), y = inner(b);
+    return x !== null && y !== null ? bold(x + ' ' + y) : null;
   }
 
   /* ---------------- writers ---------------- */
@@ -114,7 +140,8 @@
       if (it.t === 'url') { out.push(`👉 ${it.url}`); continue; }
       if (it.t === 'kv') { out.push(`${B(it.key + ':')} ${isCodeKey(it.key) ? C(it.val) : emph(demention(detag(it.val)), B, C)}`); continue; }
       if (it.t === 'bullet') { const g = /^[\d.)]+$/.test(it.glyph) || HAS_EMOJI.test(it.glyph) ? it.glyph : '•'; out.push(`${g} ${emph(demention(detag(it.text)), B, C)}`); continue; }
-      out.push(emph(demention(detag(it.text)), B, C));
+      const line = unstar(demention(detag(it.text)));
+      out.push(isSubhead(line) ? B(line) : emph(demention(detag(it.text)), B, C));
     }
     if (p.tags.length) notes.push(`${p.tags.length} hashtag${p.tags.length > 1 ? 's' : ''} dropped`);
     if (settings.waFoot.trim()) { out.push(''); out.push(settings.waFoot.trim()); }
