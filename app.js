@@ -276,12 +276,13 @@
 
   /* ---------------- state + DOM ---------------- */
   const src = $('src'), convertBtn = $('convertBtn'), paneX = $('paneX'), out = $('out'), outEmpty = $('outEmpty');
-  const state = { converted: null, locked: false, done: new Set(), active: 'wa', rdMode: 'md' };
+  const state = { converted: null, locked: false, done: new Set(), active: 'wa', rdMode: 'plain' };
   const PLATFORMS = ['wa', 'ig', 'li', 'rd'];
   const NAMES = { wa: 'WhatsApp', ig: 'Instagram', li: 'LinkedIn', rd: 'Reddit' };
 
   try { src.value = localStorage.getItem('rc.draft') || ''; } catch (e) { /* ignore */ }
-  try { state.rdMode = localStorage.getItem('rc.rdMode') || 'md'; } catch (e) { /* ignore */ }
+  // Reddit defaults everyone to the rich-text editor, which shows pasted ** literally.
+  try { state.rdMode = localStorage.getItem('rc.rdMode') || 'plain'; } catch (e) { /* ignore */ }
 
   // The box grows with the post, like the WhatsApp bubble does - never an inner scrollbar.
   function autosize() { src.style.height = 'auto'; src.style.height = Math.max(240, src.scrollHeight) + 'px'; }
