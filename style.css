@@ -359,6 +359,11 @@ html[data-theme="dark"] .stale { color: #ffd98a; background: #3a2c0a; border-col
 .li-body a { color: var(--li); }
 .li-react { display: flex; justify-content: space-between; padding: 8px 16px; font-size: 12px; color: #00000099; border-top: 1px solid #e9e5df; }
 
+/* Which Reddit editor the body is copied for. */
+.rd-mode { display: inline-flex; border: 1px solid #edeff1; border-radius: 999px; padding: 2px; background: #f6f7f8; }
+.rd-mode button { border: none; background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; color: #576f76; }
+.rd-mode button[aria-selected="true"] { background: var(--rd); color: #fff; }
+
 /* Reddit */
 .frame-rd { background: #fff; }
 .rd-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px 6px; border-top: 3px solid var(--rd); }

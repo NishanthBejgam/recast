@@ -218,7 +218,13 @@
           <div class="rd-body" id="rdPreview"></div>
           <div class="rd-vote" aria-hidden="true"><span>⬆ 42 ⬇</span><span>💬 7 comments</span><span>↗ Share</span></div>
           <div class="frame-foot">
-            <div class="frame-note"><span class="count" id="rdCount"></span> <span class="note-text" id="rdNote"></span></div>
+            <div class="frame-note">
+              <span class="rd-mode" role="group" aria-label="Reddit editor">
+                <button type="button" data-mode="md" aria-selected="true">Markdown</button>
+                <button type="button" data-mode="plain" aria-selected="false">Rich text</button>
+              </span>
+              <span class="count" id="rdCount"></span> <span class="note-text"><span id="rdNoteMode"></span> <span id="rdNote"></span></span>
+            </div>
             <div class="frame-actions">
               <button class="btn btn-sm btn-text raw-toggle" data-raw="rd" type="button">Raw</button>
             </div>

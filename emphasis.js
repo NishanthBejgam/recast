@@ -221,9 +221,12 @@
     return t.replace(/(\d+)/g, (_, i) => keep[+i]);
   }
 
-  // "*flat* *10% off*" -> "*flat 10% off*" (only when the format has real markers)
+  // "*flat* *10% off*" -> "*flat 10% off*".
+  // Markers come from the format itself: F.b('\u0001') gives open + \u0001 + close.
+  // Reddit's bold close is "**" while its italic marker is "*", so splitting F.b('')
+  // per character also ate the star between an italic and a bold span, leaving "***".
   function mergeAdjacent(t, F) {
-    const [open, close] = F.b('').split('');
+    const [open, close] = F.b('\u0001').split('\u0001');
     if (!open || !close) return t;
     const rx = new RegExp(esc(close) + ' ' + esc(open), 'g');
     let prev; do { prev = t; t = t.replace(rx, ' '); } while (t !== prev);

@@ -227,7 +227,12 @@
   function rdHtml(md) {
     const lines = md.split('\n');
     let html = '', i = 0;
-    const inline = (s) => linkify(esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>'));
+    // Bold first, then what is left of a single star is italic — otherwise an
+    // italic span renders as literal asterisks in the preview.
+    const inline = (s) => linkify(esc(s)
+      .replace(/\*\*([^*]+?)\*\*/g, '<b>$1</b>')
+      .replace(/(^|[\s(>])\*([^*\n]+?)\*(?=[\s.,!?:;)<]|$)/g, '$1<i>$2</i>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>'));
     while (i < lines.length) {
       const l = lines[i];
       if (/^\|.*\|$/.test(l) && /^\|[-| ]+\|$/.test(lines[i + 1] || '')) {
@@ -243,13 +248,40 @@
     return html;
   }
 
+  /* Reddit has two editors. The Markdown one understands **bold**; the rich-text
+     one (the default now) pastes them as literal asterisks. This renders the same
+     body for that editor: Unicode bold/italic, plain code, aligned table rows. */
+  function mdToPlain(md) {
+    const rows = [];
+    const out = md.split('\n').map((l) => {
+      if (/^\|[-| :]+\|$/.test(l)) return null;                       // table rule
+      if (/^\|.*\|$/.test(l)) { const c = l.slice(1, -1).split('|').map((x) => x.trim().replace(/\\\|/g, '|')); rows.push(c); return { row: c }; }
+      return l;
+    });
+    const widths = [];
+    for (const r of rows) r.forEach((c, i) => { widths[i] = Math.max(widths[i] || 0, styleLen(c)); });
+    return out.filter((l) => l !== null).map((l) => {
+      if (l && l.row) return l.row.map((c, i) => pad(style(c), widths[i], i === l.row.length - 1)).join('  ').replace(/\s+$/, '');
+      return style(l.replace(/^- /, '• '));
+    }).join('\n');
+  }
+  const styleLen = (s) => s.replace(/\*\*|`|(^|[\s(])\*|\*(?=[\s.,!?:;)]|$)/g, '').length;
+  function style(s) {
+    return s
+      .replace(/\*\*([^*]+?)\*\*/g, (_, x) => RCEmph.uniBold(x))
+      .replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s.,!?:;)]|$)/g, (_, p, x) => p + RCEmph.uniItalic(x))
+      .replace(/`([^`]+)`/g, '$1');
+  }
+  const pad = (s, w, last) => (last ? s : s + ' '.repeat(Math.max(0, w - [...s].length)));
+
   /* ---------------- state + DOM ---------------- */
   const src = $('src'), convertBtn = $('convertBtn'), paneX = $('paneX'), out = $('out'), outEmpty = $('outEmpty');
-  const state = { converted: null, locked: false, done: new Set(), active: 'wa' };
+  const state = { converted: null, locked: false, done: new Set(), active: 'wa', rdMode: 'md' };
   const PLATFORMS = ['wa', 'ig', 'li', 'rd'];
   const NAMES = { wa: 'WhatsApp', ig: 'Instagram', li: 'LinkedIn', rd: 'Reddit' };
 
   try { src.value = localStorage.getItem('rc.draft') || ''; } catch (e) { /* ignore */ }
+  try { state.rdMode = localStorage.getItem('rc.rdMode') || 'md'; } catch (e) { /* ignore */ }
 
   // The box grows with the post, like the WhatsApp bubble does - never an inner scrollbar.
   function autosize() { src.style.height = 'auto'; src.style.height = Math.max(240, src.scrollHeight) + 'px'; }
@@ -290,8 +322,9 @@
     $('liPreview').innerHTML = liHtml(r.li.text); $('liRaw').textContent = r.li.text;
     setNote('li', r.li);
     // Reddit
+    r.rd.plain = mdToPlain(r.rd.text);
     $('rdTitle').textContent = r.rd.title; $('rdPreview').innerHTML = rdHtml(r.rd.text);
-    $('rdRaw').textContent = `TITLE:\n${r.rd.title}\n\nBODY:\n${r.rd.text}`;
+    $('rdRaw').textContent = `TITLE:\n${r.rd.title}\n\nMARKDOWN BODY:\n${r.rd.text}\n\nRICH-TEXT BODY:\n${r.rd.plain}`;
     setNote('rd', r.rd);
 
     outEmpty.hidden = true; out.hidden = false; out.classList.remove('is-stale'); $('stale').hidden = true;
@@ -373,6 +406,16 @@
     catch (e) { snack('Clipboard blocked — press Ctrl+V in the box'); src.focus(); }
   });
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => showTab(t.dataset.p)));
+  document.querySelectorAll('.rd-mode button').forEach((b) => b.addEventListener('click', () => {
+    state.rdMode = b.dataset.mode;
+    try { localStorage.setItem('rc.rdMode', state.rdMode); } catch (e) { /* ignore */ }
+    renderRdMode();
+  }));
+  function renderRdMode() {
+    document.querySelectorAll('.rd-mode button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === state.rdMode)));
+    $('rdNoteMode').textContent = state.rdMode === 'md' ? 'Markdown editor' : 'Rich-text editor';
+  }
+  renderRdMode();
   document.querySelectorAll('.raw-toggle').forEach((b) => b.addEventListener('click', () => {
     const pre = $(b.dataset.raw + 'Raw'); pre.hidden = !pre.hidden; b.textContent = pre.hidden ? 'Raw' : 'Hide raw';
   }));
@@ -381,7 +424,8 @@
     b.addEventListener('click', async () => {
       if (!state.converted) return;
       const k = b.dataset.copy; const p = k === 'rdTitle' ? 'rd' : k;
-      const t = k === 'rdTitle' ? state.converted.rd.title : state.converted[k].text;
+      let t = k === 'rdTitle' ? state.converted.rd.title : state.converted[k].text;
+      if (k === 'rd' && state.rdMode === 'plain') t = state.converted.rd.plain;
       if (!(await copyText(t))) { snack('Copy failed — use the Raw view and select it'); return; }
       b.classList.add('is-copied'); b.textContent = 'Copied ✓';
       setTimeout(() => { b.classList.remove('is-copied'); b.textContent = b.dataset.label; }, 1600);
