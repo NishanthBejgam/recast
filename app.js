@@ -13,7 +13,7 @@
 
   /* ---------------- settings ---------------- */
   const DEFAULTS = {
-    waFoot: '_Shared by YourCardJourney_',
+    waFoot: 'Have questions! Discuss here, https://www.reddit.com/r/YCJOfficial/\n\n_Shared by YourCardJourney_',
     igFoot: 'Follow @yourcardjourney for daily card deals',
     igLink: '🔗 Link in bio',
     igTags: '#YourCardJourney #CreditCards #Deals #Offers #India #Cashback #SaveMoney',
